@@ -15,7 +15,7 @@ Return :
     Time mean of the integrals of the solutions on the all domain
 '''
 
-def Level_solver(random_param, num_time_steps, num_tri_mesh, init_fct):
+def Level_solver(a, L, num_time_steps, num_tri_mesh):
     time_steps_lenght = 1/(num_time_steps)
     integral = 0
 
@@ -29,9 +29,6 @@ def Level_solver(random_param, num_time_steps, num_tri_mesh, init_fct):
 
     u_D = Constant(0)
     bc = DirichletBC(V, u_D, boundary)
-
-    a = (u*v + random_param*time_steps_lenght*dot(grad(u),grad(v)))*dx
-    L = init_fct*v*dx
 
     for k in range(num_time_steps-1):
         u = Function(V)

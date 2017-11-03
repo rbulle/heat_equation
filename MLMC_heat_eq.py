@@ -22,7 +22,7 @@ MLMC constants
 l = 0               #Power coefficient to define geometric sequence
 min_time_steps = 1  #Number min of time steps (for level 0)
                     #Time steps lenght is constant at each MC level
-time_steps_lenght = 1/(2**l)
+time_steps_lenght = 1 
 min_tri_mesh = 1    #Number minimum of triangles (level 0)
 max_samples = 100   #Number maximum of samples (level 0)
 num_level = 5       #Number of levels
@@ -56,13 +56,14 @@ bc = DirichletBC(V, u_D, boundary) #Define the Dirichlet BC
 '''
 Initial solution
 '''
-u_n = Expression('(4/sig - pow(2*(x[0]-m1)/sig,2) - pow(2*(x[1]-m2)/sig,2))*exp(-(pow(x[0]-m1,2) + pow(x[1]-m2,2))/sig)', sig=sig, m1=mean[0], m2=mean[1], degree=1)
+init_fct = Expression('(4/sig - pow(2*(x[0]-m1)/sig,2) - pow(2*(x[1]-m2)/sig,2))*exp(-(pow(x[0]-m1,2) + pow(x[1]-m2,2))/sig)', sig=sig, m1=mean[0], m2=mean[1], degree=1)
 
 '''
 Weak equation stuff
 '''
-a = (u*v + l*time_steps_lenght*dot(grad(u),grad(v)))*dx
-L = u_n*v*dx
+a = (u*v + random_param*time_steps_lenght*dot(grad(u),grad(v)))*dx
+a_previous = (u*v + random_param*time_steps_lenght*2*dot(grad(u),grad(v)))*dx
+L = init_fct*v*dx
 
 '''
 Computation of level 0
@@ -70,7 +71,7 @@ Computation of level 0
 random_param = np.random.lognormal(0,1/8,max_samples)
 
 for k in random_param:
-    MLMC_estimator += Level_solver(k, min_time_steps, min_tri_mesh, u_n)
+    MLMC_estimator += Level_solver(a, L, min_time_steps, min_tri_mesh)
 
 MLMC_estimator = (1/max_samples)*MLMC_estimator
 
@@ -85,8 +86,8 @@ for l in range(1, num_level):
     random_param = np.random.lognormal(0,1/8,max_samples)
 
     for k in random_param:
-        increment_estimator += Level_solver(k, time_steps_current,
-                                            tri_mesh_current, u_n)-Level_solver(k, int(time_steps_current/2), int(tri_mesh_current/2), u_n)
+        increment_estimator += Level_solver(a, L, time_steps_current,
+                                            tri_mesh_current)-Level_solver(a_previous, L, int(time_steps_current/2), int(tri_mesh_current/2))
     MLMC_estimator += (1/samples_current)*increment_estimator
 
 print(MLMC_estimator)
