@@ -13,6 +13,8 @@ level.
 We start with 2 time steps, 16 triangles at the edge and 2**10 samples.
 '''
 
+results = open("MLMC_results.txt", "a")     #Create a file.txt in "add" mode
+
 '''
 MLMC variables
 '''
@@ -57,5 +59,10 @@ for l in range(num_level):
         else:
             MLMC_estimator += (1/(num_samples[l]))*(Level_solver(V[l], k, time_steps[l], init_fct) - Level_solver(V[l-1], k, time_steps[l-1],
                                                                                                                   init_fct))
+results.write(str(num_level))
+results.write('\t')
+results.write(str(MLMC_estimator))
+results.write('\n')
+results.close()
 
 print(MLMC_estimator)
