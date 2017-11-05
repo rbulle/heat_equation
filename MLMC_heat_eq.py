@@ -6,33 +6,26 @@ from MLMC_one_level import Level_solver
 from math import sqrt
 
 '''
-We will increase the number of time steps, the number of triangles at the edge
-of the unit square and the number of samples in a geometric way, using the
-following sequence : 2**l
-In other terms, at each level we increase the number of time steps by
-multiplying by 2 and the number of triangles in the mesh by multiplying by
-sqrt(2).
+At each level we increase the number of time steps and the number of triangles at the edge of the square by
+multiplying them by 2.
 In the same way we decrease the number of samples by dividing by 2 at each
-level
+level.
+We start with 2 time steps, 16 triangles at the edge and 2**10 samples.
 '''
 
 '''
-MLMC constants
+MLMC variables
 '''
-l = 0               #Power coefficient to define geometric sequence
-min_time_steps = 1  #Number min of time steps (for level 0)
-                    #Time steps lenght is constant at each MC level
-time_steps_lenght = 1 
-min_tri_mesh = 1    #Number minimum of triangles (level 0)
-max_samples = 100   #Number maximum of samples (level 0)
-num_level = 5       #Number of levels
-random_param = 0    #Init the random parameter ~ LogNormal
+num_level = int(input("Enter the number of levels (max 10):"))       #Number of levels
+random_param = 0    #Init the random parameter
+tri_mesh = [16*2**k for k in range(num_level)]
+time_steps = [2*2**k for k in range(num_level)]
+num_samples = [2**(10-k) for k in range(num_level)]
 
 '''
 Init result variables
 '''
-MLMC_estimator = 0
-increment_estimator = 0
+MLMC_estimator = 0      #Final estimator
 
 '''
 Parameters of the initial Gaussian
@@ -43,15 +36,8 @@ sig = 1             #Variance of the Gaussian
 '''
 Finite Elements stuff
 '''
-mesh = UnitSquareMesh(min_tri_mesh, min_tri_mesh)
-V = FunctionSpace(mesh, 'P', 1) #Lagrange P1 FE
-u = TrialFunction(V)
-v = TestFunction(V)
-
-def boundary(x, on_boundary):   #Define the boundary
-    return on_boundary
-u_D = Constant(0)   #Homogeneous Dirichlet Boundary Condition
-bc = DirichletBC(V, u_D, boundary) #Define the Dirichlet BC
+meshes = [UnitSquareMesh(num_tri_mesh, num_tri_mesh) for num_tri_mesh in tri_mesh]       #Create a vector of meshes with increasing refinement
+V = [FunctionSpace(mesh, 'P', 1) for mesh in meshes]
 
 '''
 Initial solution
@@ -59,35 +45,17 @@ Initial solution
 init_fct = Expression('(4/sig - pow(2*(x[0]-m1)/sig,2) - pow(2*(x[1]-m2)/sig,2))*exp(-(pow(x[0]-m1,2) + pow(x[1]-m2,2))/sig)', sig=sig, m1=mean[0], m2=mean[1], degree=1)
 
 '''
-Weak equation stuff
-'''
-a = (u*v + random_param*time_steps_lenght*dot(grad(u),grad(v)))*dx
-a_previous = (u*v + random_param*time_steps_lenght*2*dot(grad(u),grad(v)))*dx
-L = init_fct*v*dx
-
-'''
-Computation of level 0
-'''
-random_param = np.random.lognormal(0,1/8,max_samples)
-
-for k in random_param:
-    MLMC_estimator += Level_solver(a, L, min_time_steps, min_tri_mesh)
-
-MLMC_estimator = (1/max_samples)*MLMC_estimator
-
-'''
 Computation of the other levels
 '''
-for l in range(1, num_level):
-    samples_current = max_samples*(2**(-l))
-    time_steps_current = min_time_steps*(2**l)
-    tri_mesh_current = min_tri_mesh*(2**l)
+for l in range(num_level):
 
-    random_param = np.random.lognormal(0,1/8,max_samples)
+    random_param = np.random.lognormal(0, 1/8, num_samples[l])
 
     for k in random_param:
-        increment_estimator += Level_solver(a, L, time_steps_current,
-                                            tri_mesh_current)-Level_solver(a_previous, L, int(time_steps_current/2), int(tri_mesh_current/2))
-    MLMC_estimator += (1/samples_current)*increment_estimator
+        if l == 0:
+            MLMC_estimator += (1/(num_samples[l]))*Level_solver(V[l], k, time_steps[l], init_fct)
+        else:
+            MLMC_estimator += (1/(num_samples[l]))*(Level_solver(V[l], k, time_steps[l], init_fct) - Level_solver(V[l-1], k, time_steps[l-1],
+                                                                                                                  init_fct))
 
 print(MLMC_estimator)
